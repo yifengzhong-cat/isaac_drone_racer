@@ -56,6 +56,10 @@ def main():
     env_cfg = parse_env_cfg(args_cli.task, use_gpu=not args_cli.cpu, num_envs=args_cli.num_envs)
     
     # Enable sensors for ROS publishing
+    # Note: We override post_init dynamically here for simplicity in the example script.
+    # For production use, consider creating a custom configuration class that inherits
+    # from the base config and properly overrides __post_init__.
+    
     # Store reference to scene configuration before post_init modifies it
     scene_sensors = {
         'imu': env_cfg.scene.imu if hasattr(env_cfg.scene, 'imu') else None,

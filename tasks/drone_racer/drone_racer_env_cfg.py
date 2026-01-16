@@ -90,7 +90,7 @@ class DroneRacerSceneCfg(InteractiveSceneCfg):
             horizontal_res=1.0,
         ),
         max_distance=20.0,
-        drift_range=(0.0, 0.0),  # No sensor drift
+        drift_range=(0.0, 0.0),  # Sensor measurement drift/noise range in meters (no drift)
         debug_vis=False,
     )
 

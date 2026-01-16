@@ -190,8 +190,9 @@ class DroneRacerROSBridge:
         msg.range_min = 0.1
         msg.range_max = 20.0
         
-        # Pass numpy array directly (ROS accepts it efficiently)
-        msg.ranges = ranges.astype(np.float64).tolist()
+        # Use numpy array directly - ROS message field accepts array-like objects
+        # Convert to float64 for ROS compatibility without intermediate list conversion
+        msg.ranges = ranges.astype(np.float64)
         
         self.lidar_pub.publish(msg)
     
