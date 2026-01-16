@@ -144,8 +144,12 @@ class DroneRacerROSBridge:
         msg.header.stamp = self.node.get_clock().now().to_msg()
         msg.header.frame_id = "drone_depth_camera"
         
-        # Get depth image (distance_to_camera)
+        # Get depth image (distance_to_camera) - shape is (num_envs, height, width, 1)
         depth_data = depth_camera.data.output["distance_to_camera"][env_idx].cpu().numpy()
+        
+        # Remove the channel dimension if present (height, width, 1) -> (height, width)
+        if depth_data.ndim == 3 and depth_data.shape[2] == 1:
+            depth_data = depth_data.squeeze(axis=2)
         
         msg.height = depth_data.shape[0]
         msg.width = depth_data.shape[1]
@@ -153,7 +157,7 @@ class DroneRacerROSBridge:
         msg.is_bigendian = 0
         msg.step = msg.width * 4  # 4 bytes per pixel (float32)
         
-        # Convert to bytes
+        # Convert to bytes (flatten for proper image format)
         msg.data = depth_data.astype(np.float32).tobytes()
         
         self.depth_pub.publish(msg)
@@ -174,7 +178,7 @@ class DroneRacerROSBridge:
         msg.header.stamp = self.node.get_clock().now().to_msg()
         msg.header.frame_id = "drone_lidar"
         
-        # Get range data
+        # Get range data as numpy array
         ranges = lidar_sensor.data.ray_distance[env_idx].cpu().numpy()
         
         # Configure scan parameters (assumes horizontal 360-degree scan)
@@ -186,7 +190,8 @@ class DroneRacerROSBridge:
         msg.range_min = 0.1
         msg.range_max = 20.0
         
-        msg.ranges = ranges.tolist()
+        # Pass numpy array directly (ROS accepts it efficiently)
+        msg.ranges = ranges.astype(np.float64).tolist()
         
         self.lidar_pub.publish(msg)
     

@@ -56,26 +56,29 @@ def main():
     env_cfg = parse_env_cfg(args_cli.task, use_gpu=not args_cli.cpu, num_envs=args_cli.num_envs)
     
     # Enable sensors for ROS publishing
+    # Store reference to scene configuration before post_init modifies it
+    scene_sensors = {
+        'imu': env_cfg.scene.imu if hasattr(env_cfg.scene, 'imu') else None,
+        'depth_camera': env_cfg.scene.depth_camera if hasattr(env_cfg.scene, 'depth_camera') else None,
+        'lidar': env_cfg.scene.lidar if hasattr(env_cfg.scene, 'lidar') else None,
+        'tiled_camera': env_cfg.scene.tiled_camera if hasattr(env_cfg.scene, 'tiled_camera') else None,
+    }
+    
     # Override the post_init to keep sensors enabled
-    original_post_init = env_cfg.__post_init__
+    original_post_init = type(env_cfg).__post_init__
     
     def enabled_sensors_post_init(self):
         """Modified post_init that keeps sensors enabled."""
-        # Call original post_init
-        original_post_init()
+        # Call original post_init with self
+        original_post_init(self)
         
-        # Re-enable sensors (they were disabled in original post_init)
-        # Comment out the ones you don't need
-        if hasattr(self.scene, 'imu'):
-            self.scene.imu = env_cfg.scene.imu
-        if hasattr(self.scene, 'depth_camera'):
-            self.scene.depth_camera = env_cfg.scene.depth_camera
-        if hasattr(self.scene, 'lidar'):
-            self.scene.lidar = env_cfg.scene.lidar
-        if hasattr(self.scene, 'tiled_camera'):
-            self.scene.tiled_camera = env_cfg.scene.tiled_camera
+        # Re-enable sensors that were disabled in original post_init
+        for sensor_name, sensor_cfg in scene_sensors.items():
+            if sensor_cfg is not None and hasattr(self.scene, sensor_name):
+                setattr(self.scene, sensor_name, sensor_cfg)
     
-    env_cfg.__post_init__ = enabled_sensors_post_init
+    # Replace the post_init method with bound method
+    type(env_cfg).__post_init__ = enabled_sensors_post_init
     
     # Re-initialize to apply sensor changes
     env_cfg.__post_init__()
