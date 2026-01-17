@@ -14,6 +14,7 @@ import isaaclab.utils.math as math_utils
 import torch
 from isaaclab.assets import RigidObject
 from isaaclab.managers import SceneEntityCfg
+from isaaclab.sensors import RayCaster, TiledCamera
 
 from utils.logger import log
 
@@ -156,3 +157,66 @@ def target_pos_b(
     pos_b, _ = math_utils.subtract_frame_transforms(asset.data.root_pos_w, asset.data.root_quat_w, target_pos_tensor)
 
     return pos_b
+
+
+def depth_image(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg = SceneEntityCfg("depth_camera")) -> torch.Tensor:
+    """Depth camera data as distance to camera.
+    
+    Returns:
+        Depth image tensor with shape (num_envs, height, width, 1) containing distance values.
+    """
+    sensor: TiledCamera = env.scene.sensors[sensor_cfg.name]
+    # Get distance_to_camera data - shape is (num_envs, height, width, 1)
+    depth_data = sensor.data.output["distance_to_camera"]
+    return depth_data
+
+
+def lidar_distance(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg = SceneEntityCfg("lidar")) -> torch.Tensor:
+    """Lidar distance measurements.
+    
+    Returns:
+        Distance measurements tensor with shape (num_envs, num_rays) containing range data.
+    """
+    sensor: RayCaster = env.scene.sensors[sensor_cfg.name]
+    # Get distance data from ray caster
+    return sensor.data.ray_distance
+
+
+def imu_ang_vel(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg = SceneEntityCfg("imu")) -> torch.Tensor:
+    """IMU angular velocity measurements.
+    
+    Returns:
+        Angular velocity tensor with shape (num_envs, 3).
+    """
+    sensor = env.scene.sensors[sensor_cfg.name]
+    return sensor.data.ang_vel_b
+
+
+def imu_lin_acc(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg = SceneEntityCfg("imu")) -> torch.Tensor:
+    """IMU linear acceleration measurements.
+    
+    Returns:
+        Linear acceleration tensor with shape (num_envs, 3).
+    """
+    sensor = env.scene.sensors[sensor_cfg.name]
+    return sensor.data.lin_acc_b
+
+
+def imu_orientation(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg = SceneEntityCfg("imu")) -> torch.Tensor:
+    """IMU orientation measurements as quaternion.
+    
+    Returns:
+        Orientation quaternion tensor with shape (num_envs, 4).
+    """
+    sensor = env.scene.sensors[sensor_cfg.name]
+    return sensor.data.quat_w
+
+
+def image(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg = SceneEntityCfg("tiled_camera")) -> torch.Tensor:
+    """RGB camera image data.
+    
+    Returns:
+        RGB image tensor with shape (num_envs, height, width, 3).
+    """
+    sensor: TiledCamera = env.scene.sensors[sensor_cfg.name]
+    return sensor.data.output["rgb"]

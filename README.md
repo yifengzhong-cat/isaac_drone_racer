@@ -22,9 +22,10 @@ Key highlights of the Isaac Drone Racer project:
 1. **Accurate Physics Modeling** — Simulates rotor dynamics, aerodynamic drag, and power consumption to closely match real-world quadrotor behavior.
 2. **Low-Level Flight Controller** — Built-in attitude and rate controllers.
 3. **Manager-Based Design** — Modular architecture using IsaacLab's [manager based architecture](https://isaac-sim.github.io/IsaacLab/main/source/refs/reference_architecture/index.html#manager-based).
-4. **Onboard Sensor Suite** — Includes simulated fisheye camera, IMU and collision detection.
+4. **Onboard Sensor Suite** — Includes simulated fisheye camera, depth camera, lidar, IMU and collision detection.
 5. **Track Generator** — Dynamically generate custom race tracks.
 6. **Logger and Plotter** — Integrated tools for monitoring and visualizing flight behavior.
+7. **ROS 2 Integration** — Bridge for publishing sensor data to ROS topics for navigation and perception systems.
 
 ## Requirements
 This framework has been tested on x64 based Linux systems, specifically Ubuntu 22.04. But it should also work on Windows 10/11.
@@ -84,6 +85,31 @@ python3 scripts/rl/play.py --task Isaac-Drone-Racer-Play-v0 --num_envs 1
 ```
 
 This will launch a single agent with the latest checkpoint and play the trained policy in the racing environment. All the same CLI and Hydra configuration options used during training are supported here as well.
+
+## ROS Integration
+
+Isaac Drone Racer includes a ROS 2 bridge for publishing sensor data to ROS topics. This enables integration with ROS-based navigation, perception, and control systems.
+
+**Supported sensors:**
+- IMU (`/drone/imu`)
+- Depth Camera (`/drone/depth/image_raw`)
+- Lidar (`/drone/scan`)
+- RGB Camera (`/drone/camera/image_raw`)
+
+For detailed setup and usage instructions, see the [ROS Integration Guide](docs/ROS_INTEGRATION.md).
+
+**Quick start:**
+```python
+from tasks.drone_racer.ros_bridge import create_ros_bridge
+
+# Create environment and ROS bridge
+env = gym.make("Isaac-Drone-Racer-v0")
+ros_bridge = create_ros_bridge(env, publish_rate=30)
+
+# In your simulation loop
+ros_bridge.publish_all(env_idx=0)
+ros_bridge.spin_once()
+```
 
 ## Next Steps
 

@@ -17,7 +17,7 @@ from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.scene import InteractiveSceneCfg
-from isaaclab.sensors import ContactSensorCfg, ImuCfg, TiledCameraCfg
+from isaaclab.sensors import ContactSensorCfg, ImuCfg, RayCasterCfg, TiledCameraCfg, patterns
 from isaaclab.utils import configclass
 
 from . import mdp
@@ -61,6 +61,37 @@ class DroneRacerSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.FisheyeCameraCfg(),
         width=1000,
         height=1000,
+    )
+    
+    # depth camera - forward-facing depth sensor
+    depth_camera: TiledCameraCfg = TiledCameraCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/body/depth_camera",
+        offset=TiledCameraCfg.OffsetCfg(pos=(0.14, 0.0, 0.05), rot=(1.0, 0.0, 0.0, 0.0), convention="world"),
+        data_types=["distance_to_camera"],
+        spawn=sim_utils.PinholeCameraCfg(
+            focal_length=24.0,
+            focus_distance=400.0,
+            horizontal_aperture=20.955,
+            clipping_range=(0.1, 50.0),
+        ),
+        width=640,
+        height=480,
+    )
+    
+    # lidar sensor - 360-degree scanning lidar
+    lidar: RayCasterCfg = RayCasterCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/body/lidar",
+        offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 0.08)),
+        mesh_prim_paths=["/World/Ground"],
+        pattern_cfg=patterns.LidarPatternCfg(
+            channels=16,
+            vertical_fov_range=(-15.0, 15.0),
+            horizontal_fov_range=(-180.0, 180.0),
+            horizontal_res=1.0,
+        ),
+        max_distance=20.0,
+        drift_range=(0.0, 0.0),  # Sensor measurement drift/noise range in meters (no drift)
+        debug_vis=False,
     )
 
     # lights
@@ -108,10 +139,24 @@ class ObservationsCfg:
         def __post_init__(self) -> None:
             self.enable_corruption = False
             self.concatenate_terms = False
+    
+    @configclass
+    class SensorCfg(ObsGroup):
+        """Observations for sensor-based group (depth camera and lidar)."""
+        
+        depth_image = ObsTerm(func=mdp.depth_image, params={"sensor_cfg": SceneEntityCfg("depth_camera")})
+        lidar_distance = ObsTerm(func=mdp.lidar_distance, params={"sensor_cfg": SceneEntityCfg("lidar")})
+        imu_ang_vel = ObsTerm(func=mdp.imu_ang_vel, params={"sensor_cfg": SceneEntityCfg("imu")})
+        imu_lin_acc = ObsTerm(func=mdp.imu_lin_acc, params={"sensor_cfg": SceneEntityCfg("imu")})
+        
+        def __post_init__(self) -> None:
+            self.enable_corruption = False
+            self.concatenate_terms = False
 
     # observation groups
     policy: PolicyCfg = PolicyCfg()
     critic: CriticCfg = CriticCfg()
+    sensor: SensorCfg = SensorCfg()
 
 
 @configclass
@@ -207,12 +252,16 @@ class DroneRacerEnvCfg(ManagerBasedRLEnvCfg):
     def __post_init__(self) -> None:
         """Post initialization."""
 
-        # Disable IMU and Tiled Camera
+        # Disable IMU, Tiled Camera, Depth Camera, and Lidar by default for training
+        # Enable sensor observation group if you want to use depth/lidar data
         self.scene.imu = None
         self.scene.tiled_camera = None
+        self.scene.depth_camera = None
+        self.scene.lidar = None
 
         # MDP settings
         self.observations.critic = None
+        self.observations.sensor = None  # Disable sensor observations by default
         self.events.reset_base = None
         self.commands.target.randomise_start = True
 
@@ -243,12 +292,15 @@ class DroneRacerEnvCfg_PLAY(ManagerBasedRLEnvCfg):
     def __post_init__(self) -> None:
         """Post initialization."""
 
-        # Disable IMU and Tiled Camera
+        # Disable IMU, Tiled Camera, Depth Camera, and Lidar by default for play mode
         self.scene.imu = None
         self.scene.tiled_camera = None
+        self.scene.depth_camera = None
+        self.scene.lidar = None
 
         # MDP settings
         self.observations.critic = None
+        self.observations.sensor = None  # Disable sensor observations by default
 
         # Disable push robot events
         self.events.push_robot = None
